@@ -5,6 +5,7 @@ from .config import FastSpeechConfig
 from .length_regulator import LengthRegulator
 from .encoder import Encoder
 from .decoder import Decoder
+from .util import get_mask_from_lengths
 
 
 class FastSpeech(nn.Module):
@@ -29,12 +30,14 @@ class FastSpeech(nn.Module):
         enc_output, non_pad_mask = self.encoder(src_seq, src_pos)
 
         if self.training:
-            out, mel_pos = self.length_regulator(x, length_target, mel_max_length)
+            out, dur_out = self.length_regulator(enc_output, alpha, length_target, mel_max_length)
             out = self.decoder(out, mel_pos)
             out = self.mask_tensor(out, mel_pos, mel_max_length)
+            out = self.mel_linear(out)
 
-            return out, mel_pos
+            return out, dur_out
         else:
             out, mel_pos = self.length_regulator(x, alpha)
             out = self.decoder(out, mel_pos)
+            out = self.mel_linear(out)
             return out

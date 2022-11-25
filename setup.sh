@@ -13,7 +13,7 @@ mv LJSpeech-1.1 data/LJSpeech-1.1
 
 echo 'here 1'
 
-gdown https://drive.google.com/u/0/uc?id=1-EdH0t0loc6vPiuVtXdhsDtzygWNSNZx -v
+gdown https://drive.google.com/u/0/uc?id=1-EdH0t0loc6vPiuVtXdhsDtzygWNSNZx
 mv train.txt data/
 
 #download Waveglow

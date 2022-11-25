@@ -2,11 +2,8 @@ from operator import xor
 
 from torch.utils.data import ConcatDataset, DataLoader
 
-import hw_tts.augmentations
-import hw_tts.datasets
-from hw_tts import batch_sampler as batch_sampler_module
+import hw_tts.data
 from hw_tts.base.base_text_encoder import BaseTextEncoder
-from hw_tts.collate_fn.collate import collate_fn
 from hw_tts.utils.parse_config import ConfigParser
 
 

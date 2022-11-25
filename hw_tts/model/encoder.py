@@ -3,12 +3,14 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 
-from .util import FFTBlock
+from .util import FFTBlock, get_attn_key_pad_mask, get_non_pad_mask
 
 
 class Encoder(nn.Module):
     def __init__(self, model_config):
         super(Encoder, self).__init__()
+
+        self.model_config = model_config
 
         len_max_seq=model_config.max_seq_len
         n_position = len_max_seq + 1
@@ -41,8 +43,8 @@ class Encoder(nn.Module):
         enc_slf_attn_list = []
 
         # -- Prepare masks
-        slf_attn_mask = get_attn_key_pad_mask(seq_k=src_seq, seq_q=src_seq)
-        non_pad_mask = get_non_pad_mask(src_seq)
+        slf_attn_mask = get_attn_key_pad_mask(seq_k=src_seq, seq_q=src_seq, pad=self.model_config.PAD)
+        non_pad_mask = get_non_pad_mask(src_seq, self.model_config.PAD)
 
         # -- Forward
         enc_output = self.src_word_emb(src_seq) + self.position_enc(src_pos)

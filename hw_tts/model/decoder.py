@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 
-from .util import FFTBlock
+from .util import FFTBlock, get_attn_key_pad_mask, get_non_pad_mask
 
 
 class Decoder(nn.Module):
@@ -12,6 +12,8 @@ class Decoder(nn.Module):
     def __init__(self, model_config):
 
         super(Decoder, self).__init__()
+
+        self.model_config = model_config
 
         len_max_seq=model_config.max_seq_len
         n_position = len_max_seq + 1
@@ -38,8 +40,8 @@ class Decoder(nn.Module):
         dec_slf_attn_list = []
 
         # -- Prepare masks
-        slf_attn_mask = get_attn_key_pad_mask(seq_k=enc_pos, seq_q=enc_pos)
-        non_pad_mask = get_non_pad_mask(enc_pos)
+        slf_attn_mask = get_attn_key_pad_mask(seq_k=enc_pos, seq_q=enc_pos, pad=self.model_config.PAD)
+        non_pad_mask = get_non_pad_mask(enc_pos, self.model_config.PAD)
 
         # -- Forward
         dec_output = enc_seq + self.position_enc(enc_pos)

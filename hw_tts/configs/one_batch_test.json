@@ -1,59 +1,27 @@
 {
   "name": "one_batch_test",
   "n_gpu": 1,
-  "preprocessing": {
-    "sr": 16000,
-    "spectrogram": {
-      "type": "MelSpectrogram",
-      "args": {
-      }
-    },
-    "log_spec": true
-  },
-  "augmentations": {
-    "wave": [],
-    "spectrogram": []
-  },
   "arch": {
-    "type": "DeepSpeech2",
+    "type": "FastSpeech",
     "args": {
-      "n_feats": 128,
-      "fc_hidden": 512,
-      "n_rnn_layers": 1,
-      "hidden_size": 256,
-      "is_bidirectional": true
     }
   },
-  "data": {
-    "train": {
-      "batch_size": 10,
-      "num_workers": 0,
-      "datasets": [
-        {
-          "type": "LibrispeechDataset",
-          "args": {
-            "part": "dev-clean",
-            "max_audio_length": 20.0,
-            "max_text_length": 200,
-            "limit": 10
-          }
-        }
-      ]
-    },
-    "val": {
-      "batch_size": 10,
-      "num_workers": 0,
-      "datasets": [
-        {
-          "type": "LibrispeechDataset",
-          "args": {
-            "part": "dev-clean",
-            "max_audio_length": 20.0,
-            "max_text_length": 200,
-            "limit": 10
-          }
-        }
-      ]
+  "dataset": {
+    "type": "LJSpeechDataset",
+    "args": {
+    }
+  },
+  "dataloader": {
+    "type": "LJSpeechDataLoader",
+    "args": {
+      "batch_size": 16,
+      "batch_expand_size": 32,
+      "num_workers": 1
+    }
+  },
+  "loss": {
+    "type": "FastSpeechLoss",
+    "args": {
     }
   },
   "optimizer": {
@@ -62,24 +30,6 @@
       "lr": 1e-2
     }
   },
-  "loss": {
-    "type": "CTCLoss",
-    "args": {}
-  },
-  "metrics": [
-    {
-      "type": "ArgmaxWERMetric",
-      "args": {
-        "name": "WER (argmax)"
-      }
-    },
-    {
-      "type": "ArgmaxCERMetric",
-      "args": {
-        "name": "CER (argmax)"
-      }
-    }
-  ],
   "lr_scheduler": {
     "type": "OneCycleLR",
     "args": {
@@ -98,7 +48,7 @@
     "monitor": "min val_loss",
     "early_stop": 100,
     "visualize": "wandb",
-    "wandb_project": "asr_project",
+    "wandb_project": "dla_tts",
     "len_epoch": 100,
     "grad_norm_clip": 10
   }
