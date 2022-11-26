@@ -17,11 +17,11 @@ class FastSpeechLoss(nn.Module):
         duration_predictor_target,
         energy_target):
 
-        mel_loss = self.mse_loss(mel, mel_target)
+        mel_loss = self.l1_loss(mel, mel_target)
 
-        duration_predictor_loss = self.l1_loss(
-            duration_predicted,
-            duration_predictor_target.float())
+        duration_predictor_loss = self.mse_loss(
+            torch.log(duration_predicted),
+            torch.log(duration_predictor_target.float() + 1))
 
         energy_loss = self.mse_loss(
             energy_predicted,

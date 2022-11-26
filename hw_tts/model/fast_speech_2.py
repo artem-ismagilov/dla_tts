@@ -50,7 +50,10 @@ class FastSpeech2(nn.Module):
             )
 
             out = self.decoder(out, mel_pos)
+
             out = self.mask_tensor(out, mel_pos, mel_max_length)
+            energy_out.masked_fill_(mel_pos == 0, 0.0)
+
             out = self.mel_linear(out)
 
             return out, dur_out, energy_out

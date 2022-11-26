@@ -14,6 +14,14 @@ from hw_tts.base import BaseTrainer
 from hw_tts.logger.utils import plot_spectrogram_to_buf
 from hw_tts.utils import inf_loop, MetricTracker
 
+import waveglow
+import text
+import audio
+import utils
+import os
+import numpy as np
+import librosa
+
 
 class Trainer(BaseTrainer):
     """
@@ -142,6 +150,8 @@ class Trainer(BaseTrainer):
             if batch_idx >= self.len_epoch:
                 break
 
+        self._log_synthesis()
+
         log = last_train_metrics
         return log
 
@@ -155,8 +165,8 @@ class Trainer(BaseTrainer):
             total = self.len_epoch
         return base.format(current, total, 100.0 * current / total)
 
-    def _log_audio(self, wave_batch):
-        self.writer.add_audio("audio", random.choice(wave_batch.cpu()), self.config["preprocessing"]["sr"])
+    def _log_audio(self, label, wave, sr):
+        self.writer.add_audio(label, torch.tensor(wave), sr)
 
     @torch.no_grad()
     def get_grad_norm(self, norm_type=2):
@@ -171,6 +181,49 @@ class Trainer(BaseTrainer):
             norm_type,
         )
         return total_norm.item()
+
+    def _log_synthesis(self):
+        os.makedirs("results", exist_ok=True)
+        WaveGlow = utils.get_WaveGlow()
+        self.model.eval()
+
+        data = self.get_test_data()
+
+        for speed in [0.8, 1, 1.2]:
+            for i, t in enumerate(data):
+                self.synthesis(self.model, WaveGlow, t, f'results/{i}_speed_{speed}.wav', alpha=speed)
+
+        for energy in [0.8, 1, 1.2]:
+            for i, t in enumerate(data):
+                self.synthesis(self.model, WaveGlow, t, f'results/{i}_energy_{energy}.wav', energy_alpha=energy)
+
+        for f in os.listdir('results'):
+            wav, sr = librosa.load(os.path.join('results', f))
+            self._log_audio(f, wav, sr)
+
+    @staticmethod
+    def synthesis(model, WaveGlow, text, fout, alpha=1.0, energy_alpha=1.0):
+        text = np.stack([text])
+        src_pos = np.array([i+1 for i in range(text.shape[1])])
+        src_pos = np.stack([src_pos])
+        sequence = torch.from_numpy(text).long().cuda()
+        src_pos = torch.from_numpy(src_pos).long().cuda()
+
+        with torch.no_grad():
+            mel = model.forward(sequence, src_pos, alpha=alpha, energy_alpha=energy_alpha)
+        mel = mel.contiguous().transpose(1, 2)
+        waveglow.inference.inference(mel, WaveGlow, fout)
+
+    @staticmethod
+    def get_test_data():
+        tests = [
+            "A defibrillator is a device that gives a high energy electric shock to the heart of someone who is in cardiac arrest.",
+            "Massachusetts Institute of Technology may be best known for its math, science and engineering education.",
+            "Wasserstein distance or Kantorovich Rubinstein metric is a distance function defined between probability distributions on a given metric space."
+        ]
+        data_list = list(text.text_to_sequence(test, ['english_cleaners']) for test in tests)
+
+        return data_list
 
     def _log_scalars(self, metric_tracker: MetricTracker):
         if self.writer is None:

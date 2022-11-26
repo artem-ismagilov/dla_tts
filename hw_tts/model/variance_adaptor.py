@@ -8,14 +8,10 @@ from .length_regulator import LengthRegulator
 
 
 class QuantizationEmbedding(nn.Module):
-    def __init__(self, quantization_type, n_bins, min_val, max_val, hidden):
+    def __init__(self, n_bins, min_val, max_val, hidden):
         super().__init__()
 
-        assert quantization_type in ['log', 'linear']
-        if quantization_type == 'log':
-            self.bounds = torch.exp(torch.linspace(np.log(min_val + 1e-8), np.log(max_val), n_bins - 1)),
-        else:
-            self.bounds = torch.linspace(min_val, max_val, n_bins - 1)
+        self.bounds = torch.linspace(min_val, max_val, n_bins - 1)
 
         self.bounds = nn.Parameter(self.bounds, requires_grad=False)
         self.embedding = nn.Embedding(n_bins, hidden)
@@ -32,17 +28,16 @@ class VarianceAdaptor(nn.Module):
 
         self.energy_predictor = VariancePredictor(model_config)
         self.energy_emb = QuantizationEmbedding(
-            'linear',
             model_config.variance_embedding_bins,
             *model_config.energy_min_max,
             model_config.encoder_dim,
         )
 
-    def get_variance_embedding(self, emb, x, target):
+    def get_variance_embedding(self, emb, energy_prediction, target):
         if target is not None:
             return emb(target)
         else:
-            return emb(x)
+            return emb(energy_prediction)
 
     def forward(
         self,
@@ -54,9 +49,10 @@ class VarianceAdaptor(nn.Module):
         energy_alpha=1.0):
 
         x, duration_prediction = self.length_regulator(x, alpha, duration_target, max_len)
+        duration_prediction = torch.clamp(duration_prediction, min=1e-8)
 
         energy_prediction = self.energy_predictor(x) * energy_alpha
-        x = x + self.get_variance_embedding(self.energy_emb, x, energy_target)
+        x = x + self.get_variance_embedding(self.energy_emb, energy_prediction, energy_target)
 
         return (
             x,
