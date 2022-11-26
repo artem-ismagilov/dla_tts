@@ -52,7 +52,7 @@
     "early_stop": 100,
     "visualize": "wandb",
     "wandb_project": "dla_tts",
-    "len_epoch": 500,
+    "len_epoch": 16,
     "grad_norm_clip": 10
   }
 }

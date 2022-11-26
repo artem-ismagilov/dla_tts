@@ -21,6 +21,7 @@ import utils
 import os
 import numpy as np
 import librosa
+import time
 
 
 class Trainer(BaseTrainer):
@@ -99,23 +100,27 @@ class Trainer(BaseTrainer):
                 target = batch['mel_target'].to(self.device).float()
                 dur_target = batch['duration'].to(self.device).int()
                 energy_target = batch['energy'].to(self.device).float()
+                pitch_target = batch['pitch'].to(self.device).float()
 
-                mel_out, dur_out, energy_out = self.model(
+                mel_out, dur_out, energy_out, pitch_out = self.model(
                     batch['text'].to(self.device).long(),
                     batch['src_pos'].to(self.device).long(),
                     mel_pos=batch['mel_pos'].to(self.device).long(),
                     length_target=dur_target,
                     energy_target=energy_target,
+                    pitch_target=pitch_target,
                     mel_max_length=batch['mel_max_len'],
                 )
 
-                mel_loss, dur_loss, energy_loss = self.criterion(
+                mel_loss, dur_loss, energy_loss, pitch_loss = self.criterion(
                     mel_out,
                     dur_out,
                     energy_out,
+                    pitch_out,
                     target,
                     dur_target,
                     energy_target,
+                    pitch_target,
                 )
 
                 loss = mel_loss + dur_loss + energy_loss
@@ -183,6 +188,9 @@ class Trainer(BaseTrainer):
         return total_norm.item()
 
     def _log_synthesis(self):
+        print('Synthesize test audios...')
+        start = time.time()
+
         os.makedirs("results", exist_ok=True)
         WaveGlow = utils.get_WaveGlow()
         self.model.eval()
@@ -197,12 +205,29 @@ class Trainer(BaseTrainer):
             for i, t in enumerate(data):
                 self.synthesis(self.model, WaveGlow, t, f'results/{i}_energy_{energy}.wav', energy_alpha=energy)
 
+        for pitch in [0.8, 1, 1.2]:
+            for i, t in enumerate(data):
+                self.synthesis(self.model, WaveGlow, t, f'results/{i}_energy_{pitch}.wav', pitch_alpha=pitch)
+
+        for k in [0.8, 1, 1.2]:
+            for i, t in enumerate(data):
+                self.synthesis(
+                    self.model,
+                    WaveGlow,
+                    t,
+                    f'results/{i}_all_{k}.wav',
+                    alpha=k,
+                    energy_alpha=k,
+                    pitch_alpha=k,)
+
         for f in os.listdir('results'):
             wav, sr = librosa.load(os.path.join('results', f))
             self._log_audio(f, wav, sr)
 
+        print(f'Synthesize took {time.time() - start} seconds')
+
     @staticmethod
-    def synthesis(model, WaveGlow, text, fout, alpha=1.0, energy_alpha=1.0):
+    def synthesis(model, WaveGlow, text, fout, alpha=1.0, energy_alpha=1.0, pitch_alpha=1.0):
         text = np.stack([text])
         src_pos = np.array([i+1 for i in range(text.shape[1])])
         src_pos = np.stack([src_pos])
@@ -210,7 +235,7 @@ class Trainer(BaseTrainer):
         src_pos = torch.from_numpy(src_pos).long().cuda()
 
         with torch.no_grad():
-            mel = model.forward(sequence, src_pos, alpha=alpha, energy_alpha=energy_alpha)
+            mel = model.forward(sequence, src_pos, alpha=alpha, energy_alpha=energy_alpha, pitch_alpha=1.0)
         mel = mel.contiguous().transpose(1, 2)
         waveglow.inference.inference(mel, WaveGlow, fout)
 

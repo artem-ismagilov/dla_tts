@@ -33,11 +33,18 @@ class VarianceAdaptor(nn.Module):
             model_config.encoder_dim,
         )
 
-    def get_variance_embedding(self, emb, energy_prediction, target):
+        self.pitch_predictor = VariancePredictor(model_config)
+        self.pitch_emb = QuantizationEmbedding(
+            model_config.variance_embedding_bins,
+            *model_config.pitch_min_max,
+            model_config.encoder_dim,
+        )
+
+    def get_variance_embedding(self, emb, prediction, target):
         if target is not None:
             return emb(target)
         else:
-            return emb(energy_prediction)
+            return emb(prediction)
 
     def forward(
         self,
@@ -45,8 +52,10 @@ class VarianceAdaptor(nn.Module):
         max_len=None,
         duration_target=None,
         energy_target=None,
+        pitch_target=None,
         alpha=1.0,
-        energy_alpha=1.0):
+        energy_alpha=1.0,
+        pitch_alpha=1.0):
 
         x, duration_prediction = self.length_regulator(x, alpha, duration_target, max_len)
         duration_prediction = torch.clamp(duration_prediction, min=1e-8)
@@ -54,8 +63,12 @@ class VarianceAdaptor(nn.Module):
         energy_prediction = self.energy_predictor(x) * energy_alpha
         x = x + self.get_variance_embedding(self.energy_emb, energy_prediction, energy_target)
 
+        pitch_prediction = self.pitch_predictor(x) * pitch_alpha
+        x = x + self.get_variance_embedding(self.pitch_emb, pitch_prediction, pitch_target)
+
         return (
             x,
             duration_prediction,
             energy_prediction,
+            pitch_prediction,
         )

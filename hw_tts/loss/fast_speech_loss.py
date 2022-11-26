@@ -13,9 +13,11 @@ class FastSpeechLoss(nn.Module):
         mel,
         duration_predicted,
         energy_predicted,
+        pitch_predicted,
         mel_target,
         duration_predictor_target,
-        energy_target):
+        energy_target,
+        pitch_target):
 
         mel_loss = self.l1_loss(mel, mel_target)
 
@@ -27,4 +29,8 @@ class FastSpeechLoss(nn.Module):
             energy_predicted,
             energy_target.float())
 
-        return mel_loss, duration_predictor_loss, energy_loss
+        pitch_loss = self.mse_loss(
+            pitch_predicted,
+            pitch_target.float())
+
+        return mel_loss, duration_predictor_loss, energy_loss, pitch_loss

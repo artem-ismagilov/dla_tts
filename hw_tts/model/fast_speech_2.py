@@ -34,31 +34,36 @@ class FastSpeech2(nn.Module):
         mel_max_length=None,
         length_target=None,
         energy_target=None,
+        pitch_target=None,
         alpha=1.0,
-        energy_alpha=1.0):
+        energy_alpha=1.0,
+        pitch_alpha=1.0):
 
         enc_output, non_pad_mask = self.encoder(src_seq, src_pos)
 
         if self.training:
-            out, dur_out, energy_out = self.variance_adaptor(
+            out, dur_out, energy_out, pitch_out = self.variance_adaptor(
                 enc_output,
                 mel_max_length,
                 length_target,
                 energy_target,
+                pitch_target,
                 alpha,
                 energy_alpha,
+                pitch_alpha
             )
 
             out = self.decoder(out, mel_pos)
 
             out = self.mask_tensor(out, mel_pos, mel_max_length)
             energy_out.masked_fill_(mel_pos == 0, 0.0)
+            pitch_out.masked_fill_(mel_pos == 0, 0.0)
 
             out = self.mel_linear(out)
 
-            return out, dur_out, energy_out
+            return out, dur_out, energy_out, pitch_out
         else:
-            out, mel_pos, _ = self.variance_adaptor(
+            out, mel_pos, _, _ = self.variance_adaptor(
                 enc_output,
                 alpha=alpha,
                 energy_alpha=energy_alpha,

@@ -25,6 +25,7 @@ class FastSpeechConfig:
 
     variance_embedding_bins = 256
     energy_min_max = (-1.1357148885726929, 15.167808532714844)
+    pitch_min_max = (-1.1868396117310913, 6.822635708394187)
 
     variance_predictor_filter_size = 256
     duration_predictor_kernel_size = 3

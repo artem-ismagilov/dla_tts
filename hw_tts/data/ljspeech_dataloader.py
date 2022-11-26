@@ -45,14 +45,19 @@ def get_data_to_buffer():
     energy_min, energy_max = 1000, 0
     energy_std, energy_mean = [], []
 
+    pitch_min, pitch_max = 1000, 0
+    pitch_std, pitch_mean = [], []
+
     start = time.perf_counter()
     for i in tqdm(range(len(text))):
-
         mel_gt_name = os.path.join("./mels", "ljspeech-mel-%05d.npy" % (i+1))
         energy_gt_name = os.path.join("./mels", "ljspeech-energy-%05d.npy" % (i+1))
+        pitch_gt_name = os.path.join("./mels", "ljspeech-pitch-%05d.npy" % (i+1))
 
         mel_gt_target = np.load(mel_gt_name)
         energy_gt_target = np.load(energy_gt_name)
+        pitch_gt_target = np.load(pitch_gt_name)
+
         duration = np.load(os.path.join("./alignments", str(i)+".npy"))
         character = text[i][0:len(text[i])-1]
         character = np.array(text_to_sequence(character, ['english_cleaners']))
@@ -62,16 +67,23 @@ def get_data_to_buffer():
         energy_std.append(np.std(energy_gt_target))
         energy_mean.append(np.mean(energy_gt_target))
 
+        pitch_min = min(pitch_min, np.amin(pitch_gt_target))
+        pitch_max = max(pitch_max, np.amax(pitch_gt_target))
+        pitch_std.append(np.std(pitch_gt_target))
+        pitch_mean.append(np.mean(pitch_gt_target))
+
         character = torch.from_numpy(character)
         duration = torch.from_numpy(duration)
         mel_gt_target = torch.from_numpy(mel_gt_target)
         energy_gt_target = torch.from_numpy(energy_gt_target)
+        pitch_gt_target = torch.from_numpy(pitch_gt_target)
 
         buffer.append({
             "text": character,
             "duration": duration,
             "mel_target": mel_gt_target,
             "energy": energy_gt_target,
+            "pitch": pitch_gt_target,
         })
 
     energy_std = np.mean(energy_std)
@@ -79,12 +91,19 @@ def get_data_to_buffer():
     energy_max = (energy_max - energy_mean) / energy_std
     energy_min = (energy_min - energy_mean) / energy_std
 
+    pitch_std = np.mean(pitch_std)
+    pitch_mean = np.mean(pitch_mean)
+    pitch_max = (pitch_max - pitch_mean) / pitch_std
+    pitch_min = (pitch_min - pitch_mean) / pitch_std
+
     for b in buffer:
         b['energy'] = (b['energy'] - energy_mean) / energy_std
+        b['pitch'] = (b['pitch'] - pitch_mean) / pitch_std
 
     end = time.perf_counter()
 
     print(f'energy bounds: {energy_min} {energy_max}')
+    print(f'pitch bounds: {pitch_min} {pitch_max}')
     print("cost {:.2f}s to load all data into buffer.".format(end-start))
 
     return buffer
@@ -173,6 +192,7 @@ def reprocess_tensor(batch, cut_list):
     mel_targets = [batch[ind]["mel_target"] for ind in cut_list]
     durations = [batch[ind]["duration"] for ind in cut_list]
     energy = [batch[ind]["energy"] for ind in cut_list]
+    pitch = [batch[ind]["pitch"] for ind in cut_list]
 
     length_text = np.array([])
     for text in texts:
@@ -199,12 +219,14 @@ def reprocess_tensor(batch, cut_list):
     texts = pad_1D_tensor(texts)
     durations = pad_1D_tensor(durations)
     energy = pad_1D_tensor(energy)
+    pitch = pad_1D_tensor(pitch)
     mel_targets = pad_2D_tensor(mel_targets)
 
     out = {"text": texts,
            "mel_target": mel_targets,
            "duration": durations,
            "energy": energy,
+           "pitch": pitch,
            "mel_pos": mel_pos,
            "src_pos": src_pos,
            "mel_max_len": max_mel_len}
