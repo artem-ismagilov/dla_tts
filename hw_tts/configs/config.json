@@ -1,5 +1,5 @@
 {
-  "name": "one_batch_test",
+  "name": "fast_speech_1_test",
   "n_gpu": 1,
   "arch": {
     "type": "FastSpeech",
@@ -15,8 +15,8 @@
     "type": "LJSpeechDataLoader",
     "args": {
       "batch_size": 16,
-      "batch_expand_size": 32,
-      "num_workers": 1
+      "batch_expand_size": 1,
+      "num_workers": 6
     }
   },
   "loss": {
@@ -25,31 +25,33 @@
     }
   },
   "optimizer": {
-    "type": "SGD",
+    "type": "AdamW",
     "args": {
-      "lr": 1e-2
+      "lr": 1e-3,
+      "betas": [0.9, 0.98],
+      "eps": 1e-9
     }
   },
   "lr_scheduler": {
     "type": "OneCycleLR",
     "args": {
-      "steps_per_epoch": 100,
-      "epochs": 50,
+      "steps_per_epoch": 500,
+      "epochs": 100,
       "anneal_strategy": "cos",
-      "max_lr": 1e-2,
-      "pct_start": 0.2
+      "max_lr": 1e-3,
+      "pct_start": 0.1
     }
   },
   "trainer": {
-    "epochs": 50,
+    "epochs": 100,
     "save_dir": "saved/",
-    "save_period": 5,
+    "save_period": 1,
     "verbosity": 2,
     "monitor": "min val_loss",
     "early_stop": 100,
     "visualize": "wandb",
     "wandb_project": "dla_tts",
-    "len_epoch": 100,
+    "len_epoch": 500,
     "grad_norm_clip": 10
   }
 }

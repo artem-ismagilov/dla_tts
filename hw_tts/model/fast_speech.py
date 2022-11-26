@@ -37,7 +37,7 @@ class FastSpeech(nn.Module):
 
             return out, dur_out
         else:
-            out, mel_pos = self.length_regulator(x, alpha)
+            out, mel_pos = self.length_regulator(enc_output, alpha)
             out = self.decoder(out, mel_pos)
             out = self.mel_linear(out)
             return out

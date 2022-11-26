@@ -44,7 +44,7 @@ class Trainer(BaseTrainer):
             self.train_dataloader = inf_loop(self.train_dataloader)
             self.len_epoch = len_epoch
         self.lr_scheduler = lr_scheduler
-        self.log_step = 50
+        self.log_step = 15
 
         self.train_metrics = MetricTracker(
             "loss", "duration_loss", "mel_loss", writer=self.writer
@@ -83,9 +83,9 @@ class Trainer(BaseTrainer):
 
         print('LR:', self.lr_scheduler.get_last_lr()[0])
 
-        batch_idx = 00
+        batch_idx = 0
         for batches in tqdm(self.train_dataloader):
-            for batch in tqdm(batches):
+            for batch in batches:
                 self.optimizer.zero_grad()
 
                 target = batch['mel_target'].to(self.device).float()
@@ -114,19 +114,36 @@ class Trainer(BaseTrainer):
                 batch_idx += 1
 
                 if batch_idx % self.log_step == 0:
-                    if self.writer is not None:
-                        self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx, mode="train")
-                        if self.lr_scheduler is not None:
-                            self.writer.add_scalar(
-                                "learning_rate", self.lr_scheduler.get_last_lr()[0]
-                            )
+                    self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
+                    self.logger.debug(
+                        "Train Epoch: {} {} Loss: {:.6f}".format(
+                            epoch, self._progress(batch_idx), loss.item()
+                        )
+                    )
+                    self.writer.add_scalar(
+                        "learning rate", self.lr_scheduler.get_last_lr()[0]
+                    )
+                    self._log_scalars(self.train_metrics)
+                    # we don't want to reset train metrics at the start of every epoch
+                    # because we are interested in recent train metrics
+                    last_train_metrics = self.train_metrics.result()
+                    self.train_metrics.reset()
 
-                        print(f'Loss: {loss.detach()}')
+            if batch_idx >= self.len_epoch:
+                break
 
-                if batch_idx == self.len_epoch:
-                    break
-
+        log = last_train_metrics
         return log
+
+    def _progress(self, batch_idx):
+        base = "[{}/{} ({:.0f}%)]"
+        if hasattr(self.train_dataloader, "n_samples"):
+            current = batch_idx * self.train_dataloader.batch_size
+            total = self.train_dataloader.n_samples
+        else:
+            current = batch_idx
+            total = self.len_epoch
+        return base.format(current, total, 100.0 * current / total)
 
     def _log_audio(self, wave_batch):
         self.writer.add_audio("audio", random.choice(wave_batch.cpu()), self.config["preprocessing"]["sr"])

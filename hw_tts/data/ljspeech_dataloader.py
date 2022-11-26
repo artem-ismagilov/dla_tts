@@ -29,6 +29,52 @@ from collections import OrderedDict
 from text import text_to_sequence
 
 
+def process_text(train_text_path):
+    with open(train_text_path, "r", encoding="utf-8") as f:
+        txt = []
+        for line in f.readlines():
+            txt.append(line)
+
+        return txt
+
+
+def get_data_to_buffer():
+    buffer = list()
+    text = process_text("./data/train.txt")
+
+    start = time.perf_counter()
+    for i in tqdm(range(len(text))):
+
+        mel_gt_name = os.path.join("./mels", "ljspeech-mel-%05d.npy" % (i+1))
+        mel_gt_target = np.load(mel_gt_name)
+        duration = np.load(os.path.join("./alignments", str(i)+".npy"))
+        character = text[i][0:len(text[i])-1]
+        character = np.array(text_to_sequence(character, ['english_cleaners']))
+
+        character = torch.from_numpy(character)
+        duration = torch.from_numpy(duration)
+        mel_gt_target = torch.from_numpy(mel_gt_target)
+
+        buffer.append({"text": character, "duration": duration, "mel_target": mel_gt_target})
+
+    end = time.perf_counter()
+    print("cost {:.2f}s to load all data into buffer.".format(end-start))
+
+    return buffer
+
+
+class LJSpeechDataset(Dataset):
+    def __init__(self):
+        self.buffer = get_data_to_buffer()
+        self.length_dataset = len(self.buffer)
+
+    def __len__(self):
+        return self.length_dataset
+
+    def __getitem__(self, idx):
+        return self.buffer[idx]
+
+
 def pad_1D(inputs, PAD=0):
 
     def pad_data(x, length, PAD):
@@ -95,65 +141,6 @@ def pad_2D_tensor(inputs, maxlen=None):
 
     return output
 
-
-def process_text(train_text_path):
-    with open(train_text_path, "r", encoding="utf-8") as f:
-        txt = []
-        for line in f.readlines():
-            txt.append(line)
-
-        return txt
-
-
-def get_data_to_buffer(data_path, mel_ground_truth, alignment_path, text_cleaners):
-    buffer = list()
-    text = process_text(data_path)
-
-    start = time.perf_counter()
-    for i in tqdm(range(len(text))):
-
-        mel_gt_name = os.path.join(mel_ground_truth, "ljspeech-mel-%05d.npy" % (i+1))
-        mel_gt_target = np.load(mel_gt_name)
-        duration = np.load(os.path.join(alignment_path, str(i)+".npy"))
-        character = text[i][0:len(text[i])-1]
-        character = np.array(text_to_sequence(character, text_cleaners))
-
-        character = torch.from_numpy(character)
-        duration = torch.from_numpy(duration)
-        mel_gt_target = torch.from_numpy(mel_gt_target)
-
-        buffer.append({"text": character, "duration": duration,
-                       "mel_target": mel_gt_target})
-
-    end = time.perf_counter()
-    print("cost {:.2f}s to load all data into buffer.".format(end-start))
-
-    return buffer
-
-
-class BufferDataset(Dataset):
-    def __init__(self, buffer):
-        self.buffer = buffer
-        self.length_dataset = len(self.buffer)
-
-    def __len__(self):
-        return self.length_dataset
-
-    def __getitem__(self, idx):
-        return self.buffer[idx]
-
-
-class LJSpeechDataset(BufferDataset):
-    def __init__(
-        self,
-        data_path,
-        mel_ground_truth,
-        alignment_path,
-        text_cleaners):
-
-        super().__init__(get_data_to_buffer(data_path, mel_ground_truth, alignment_path, text_cleaners))
-
-
 def reprocess_tensor(batch, cut_list):
     texts = [batch[ind]["text"] for ind in cut_list]
     mel_targets = [batch[ind]["mel_target"] for ind in cut_list]
@@ -197,21 +184,21 @@ def reprocess_tensor(batch, cut_list):
 
 class Collator:
     def __init__(self, batch_size, batch_expand_size):
-        self._batch_size = batch_size
-        self._batch_expand_size = batch_expand_size
+        self.batch_size = batch_size
+        self.batch_expand_size = batch_expand_size
 
     def __call__(self, batch):
         len_arr = np.array([d["text"].size(0) for d in batch])
         index_arr = np.argsort(-len_arr)
         batchsize = len(batch)
-        real_batchsize = self._batch_size // self._batch_expand_size
+        real_batchsize = batchsize // self.batch_expand_size
 
         cut_list = list()
-        for i in range(self._batch_expand_size):
+        for i in range(self.batch_expand_size):
             cut_list.append(index_arr[i*real_batchsize:(i+1)*real_batchsize])
 
         output = list()
-        for i in range(self._batch_expand_size):
+        for i in range(self.batch_expand_size):
             output.append(reprocess_tensor(batch, cut_list[i]))
 
         return output
@@ -223,14 +210,15 @@ class LJSpeechDataLoader(DataLoader):
         dataset,
         batch_size,
         batch_expand_size,
-        n_workers):
-
-        collator = Collator(batch_size, batch_expand_size)
+        num_workers
+    ):
         super().__init__(
             dataset,
-            batch_size=batch_size * batch_expand_size,
-            num_workers=n_workers,
             collate_fn=Collator(batch_size, batch_expand_size),
+            batch_size=batch_expand_size * batch_size,
+            num_workers=num_workers,
             shuffle=True,
             drop_last=True,
         )
+        self.batch_expand_size = batch_expand_size
+
