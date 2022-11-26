@@ -36,7 +36,7 @@
   "lr_scheduler": {
     "type": "OneCycleLR",
     "args": {
-      "steps_per_epoch": 500,
+      "steps_per_epoch": 1000,
       "epochs": 100,
       "anneal_strategy": "cos",
       "max_lr": 1e-3,
@@ -52,7 +52,7 @@
     "early_stop": 100,
     "visualize": "wandb",
     "wandb_project": "dla_tts",
-    "len_epoch": 16,
+    "len_epoch": 1000,
     "grad_norm_clip": 10
   }
 }

@@ -56,7 +56,7 @@ class Trainer(BaseTrainer):
         self.log_step = 15
 
         self.train_metrics = MetricTracker(
-            "loss", "duration_loss", "mel_loss", "energy_loss", writer=self.writer
+            "loss", "duration_loss", "mel_loss", "energy_loss", "pitch_loss", writer=self.writer
         )
         self.evaluation_metrics = MetricTracker(
             "loss", writer=self.writer
@@ -123,7 +123,7 @@ class Trainer(BaseTrainer):
                     pitch_target,
                 )
 
-                loss = mel_loss + dur_loss + energy_loss
+                loss = mel_loss + dur_loss + energy_loss + pitch_loss
                 loss.backward()
 
                 self.optimizer.step()
@@ -133,6 +133,7 @@ class Trainer(BaseTrainer):
                 self.train_metrics.update('mel_loss', mel_loss.detach())
                 self.train_metrics.update('duration_loss', dur_loss.detach())
                 self.train_metrics.update('energy_loss', energy_loss.detach())
+                self.train_metrics.update('pitch_loss', pitch_loss.detach())
 
                 batch_idx += 1
 
@@ -207,7 +208,7 @@ class Trainer(BaseTrainer):
 
         for pitch in [0.8, 1, 1.2]:
             for i, t in enumerate(data):
-                self.synthesis(self.model, WaveGlow, t, f'results/{i}_energy_{pitch}.wav', pitch_alpha=pitch)
+                self.synthesis(self.model, WaveGlow, t, f'results/{i}_pitch_{pitch}.wav', pitch_alpha=pitch)
 
         for k in [0.8, 1, 1.2]:
             for i, t in enumerate(data):
