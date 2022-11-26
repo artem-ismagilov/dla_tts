@@ -1,8 +1,8 @@
 {
-  "name": "fast_speech_1_test",
+  "name": "fast_speech_2_test",
   "n_gpu": 1,
   "arch": {
-    "type": "FastSpeech",
+    "type": "FastSpeech2",
     "args": {
     }
   },

@@ -47,7 +47,7 @@ class Trainer(BaseTrainer):
         self.log_step = 15
 
         self.train_metrics = MetricTracker(
-            "loss", "duration_loss", "mel_loss", writer=self.writer
+            "loss", "duration_loss", "mel_loss", "energy_loss", writer=self.writer
         )
         self.evaluation_metrics = MetricTracker(
             "loss", writer=self.writer
@@ -90,18 +90,27 @@ class Trainer(BaseTrainer):
 
                 target = batch['mel_target'].to(self.device).float()
                 dur_target = batch['duration'].to(self.device).int()
+                energy_target = batch['energy'].to(self.device).float()
 
-                mel_out, dur_out = self.model(
+                mel_out, dur_out, energy_out = self.model(
                     batch['text'].to(self.device).long(),
                     batch['src_pos'].to(self.device).long(),
                     mel_pos=batch['mel_pos'].to(self.device).long(),
                     length_target=dur_target,
+                    energy_target=energy_target,
                     mel_max_length=batch['mel_max_len'],
                 )
 
-                mel_loss, dur_loss = self.criterion(mel_out, dur_out, target, dur_target)
-                loss = mel_loss + dur_loss
+                mel_loss, dur_loss, energy_loss = self.criterion(
+                    mel_out,
+                    dur_out,
+                    energy_out,
+                    target,
+                    dur_target,
+                    energy_target,
+                )
 
+                loss = mel_loss + dur_loss + energy_loss
                 loss.backward()
 
                 self.optimizer.step()
@@ -110,6 +119,7 @@ class Trainer(BaseTrainer):
                 self.train_metrics.update('loss', loss.detach())
                 self.train_metrics.update('mel_loss', mel_loss.detach())
                 self.train_metrics.update('duration_loss', dur_loss.detach())
+                self.train_metrics.update('energy_loss', energy_loss.detach())
 
                 batch_idx += 1
 

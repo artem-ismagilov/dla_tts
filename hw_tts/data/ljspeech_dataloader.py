@@ -42,22 +42,49 @@ def get_data_to_buffer():
     buffer = list()
     text = process_text("./data/train.txt")
 
+    energy_min, energy_max = 1000, 0
+    energy_std, energy_mean = [], []
+
     start = time.perf_counter()
     for i in tqdm(range(len(text))):
 
         mel_gt_name = os.path.join("./mels", "ljspeech-mel-%05d.npy" % (i+1))
+        energy_gt_name = os.path.join("./mels", "ljspeech-energy-%05d.npy" % (i+1))
+
         mel_gt_target = np.load(mel_gt_name)
+        energy_gt_target = np.load(energy_gt_name)
         duration = np.load(os.path.join("./alignments", str(i)+".npy"))
         character = text[i][0:len(text[i])-1]
         character = np.array(text_to_sequence(character, ['english_cleaners']))
 
+        energy_min = min(energy_min, np.amin(energy_gt_target))
+        energy_max = max(energy_max, np.amax(energy_gt_target))
+        energy_std.append(np.std(energy_gt_target))
+        energy_mean.append(np.mean(energy_gt_target))
+
         character = torch.from_numpy(character)
         duration = torch.from_numpy(duration)
         mel_gt_target = torch.from_numpy(mel_gt_target)
+        energy_gt_target = torch.from_numpy(energy_gt_target)
 
-        buffer.append({"text": character, "duration": duration, "mel_target": mel_gt_target})
+        buffer.append({
+            "text": character,
+            "duration": duration,
+            "mel_target": mel_gt_target,
+            "energy": energy_gt_target,
+        })
+
+    energy_std = np.mean(energy_std)
+    energy_mean = np.mean(energy_mean)
+    energy_max = (energy_max - energy_mean) / energy_std
+    energy_min = (energy_min - energy_mean) / energy_std
+
+    for b in buffer:
+        b['energy'] = (b['energy'] - energy_mean) / energy_std
 
     end = time.perf_counter()
+
+    print(f'energy bounds: {energy_min} {energy_max}')
     print("cost {:.2f}s to load all data into buffer.".format(end-start))
 
     return buffer
@@ -145,6 +172,7 @@ def reprocess_tensor(batch, cut_list):
     texts = [batch[ind]["text"] for ind in cut_list]
     mel_targets = [batch[ind]["mel_target"] for ind in cut_list]
     durations = [batch[ind]["duration"] for ind in cut_list]
+    energy = [batch[ind]["energy"] for ind in cut_list]
 
     length_text = np.array([])
     for text in texts:
@@ -170,11 +198,13 @@ def reprocess_tensor(batch, cut_list):
 
     texts = pad_1D_tensor(texts)
     durations = pad_1D_tensor(durations)
+    energy = pad_1D_tensor(energy)
     mel_targets = pad_2D_tensor(mel_targets)
 
     out = {"text": texts,
            "mel_target": mel_targets,
            "duration": durations,
+           "energy": energy,
            "mel_pos": mel_pos,
            "src_pos": src_pos,
            "mel_max_len": max_mel_len}

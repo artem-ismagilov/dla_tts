@@ -15,8 +15,6 @@ class Transpose(nn.Module):
 
 
 class VariancePredictor(nn.Module):
-    """ Duration Predictor """
-
     def __init__(self, model_config):
         super(VariancePredictor, self).__init__()
 
@@ -50,12 +48,16 @@ class VariancePredictor(nn.Module):
         self.linear_layer = nn.Linear(self.conv_output_size, 1)
         self.relu = nn.ReLU()
 
-    def forward(self, encoder_output):
+    def forward(self, encoder_output, mask=None):
         encoder_output = self.conv_net(encoder_output)
 
         out = self.linear_layer(encoder_output)
         out = self.relu(out)
         out = out.squeeze()
+
+        if mask is not None:
+            out = out.masked_fill(mask, 0.0)
+
         if not self.training:
             out = out.unsqueeze(0)
         return out
