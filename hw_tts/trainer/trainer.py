@@ -236,7 +236,7 @@ class Trainer(BaseTrainer):
         src_pos = torch.from_numpy(src_pos).long().cuda()
 
         with torch.no_grad():
-            mel = model.forward(sequence, src_pos, alpha=alpha, energy_alpha=energy_alpha, pitch_alpha=1.0)
+            mel = model.forward(sequence, src_pos, alpha=alpha, energy_alpha=energy_alpha, pitch_alpha=pitch_alpha)
         mel = mel.contiguous().transpose(1, 2)
         waveglow.inference.inference(mel, WaveGlow, fout)
 

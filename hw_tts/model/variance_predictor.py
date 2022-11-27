@@ -46,13 +46,13 @@ class VariancePredictor(nn.Module):
         )
 
         self.linear_layer = nn.Linear(self.conv_output_size, 1)
-        self.relu = nn.ReLU()
+        # self.relu = nn.ReLU()
 
     def forward(self, encoder_output, mask=None):
         encoder_output = self.conv_net(encoder_output)
 
         out = self.linear_layer(encoder_output)
-        out = self.relu(out)
+        # out = self.relu(out)
         out = out.squeeze()
 
         if mask is not None:

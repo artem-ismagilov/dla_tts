@@ -25,6 +25,7 @@ class VarianceAdaptor(nn.Module):
         super().__init__()
 
         self.length_regulator = LengthRegulator(model_config)
+        self.model_config = model_config
 
         self.energy_predictor = VariancePredictor(model_config)
         self.energy_emb = QuantizationEmbedding(
@@ -63,7 +64,7 @@ class VarianceAdaptor(nn.Module):
         energy_prediction = self.energy_predictor(x) * energy_alpha
         x = x + self.get_variance_embedding(self.energy_emb, energy_prediction, energy_target)
 
-        pitch_prediction = self.pitch_predictor(x) * pitch_alpha
+        pitch_prediction = (self.pitch_predictor(x) - self.model_config.pitch_min_max[0]) * pitch_alpha + self.model_config.pitch_min_max[0]
         x = x + self.get_variance_embedding(self.pitch_emb, pitch_prediction, pitch_target)
 
         return (
