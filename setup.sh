@@ -1,4 +1,6 @@
 #install libraries
+pip3 install -r requirements.txt
+
 pip install torchaudio
 pip install wandb
 pip install gdown
@@ -35,3 +37,5 @@ mv FastSpeech/text .
 mv FastSpeech/waveglow/* waveglow/
 mv FastSpeech/utils.py .
 mv FastSpeech/glow.py .
+
+python3 setup.py
