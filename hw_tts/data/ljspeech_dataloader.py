@@ -272,5 +272,4 @@ class LJSpeechDataLoader(DataLoader):
             shuffle=True,
             drop_last=True,
         )
-        self.batch_expand_size = batch_expand_size
 
