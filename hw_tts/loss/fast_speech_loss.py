@@ -23,7 +23,7 @@ class FastSpeechLoss(nn.Module):
 
         duration_predictor_loss = self.mse_loss(
             torch.log(duration_predicted),
-            torch.log(duration_predictor_target.float() + 1))
+            torch.log(duration_predictor_target.float()))
 
         energy_loss = self.mse_loss(
             energy_predicted,
