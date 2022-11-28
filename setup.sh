@@ -3,6 +3,10 @@ pip install torchaudio
 pip install wandb
 pip install gdown
 
+pip3 install unidecode
+pip3 install inflect
+pip3 install pyworld
+
 echo 'here 0'
 
 #download LjSpeech
@@ -19,9 +23,7 @@ gdown https://drive.google.com/u/0/uc?id=1WsibBTsuRg_SF2Z6L6NFRTT-NjEy1oTx
 mkdir -p waveglow/pretrained_model/
 mv waveglow_256channels_ljs_v2.pt waveglow/pretrained_model/waveglow_256channels.pt
 
-gdown https://drive.google.com/u/0/uc?id=1cJKJTmYd905a-9GFoo5gKjzhKjUVj83j
-tar -xvf mel.tar.gz
-echo $(ls mels | wc -l)
+mkdir mels
 
 #download alignments
 wget https://github.com/xcmyz/FastSpeech/raw/master/alignments.zip
